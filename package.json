@@ -1,0 +1,35 @@
+{
+  "name": "koa-rbac-mongo",
+  "version": "0.1.0",
+  "description": " Save the rbac rules to mongodb for dynamic rbac setup and check.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "DEBUG=koa-rbac-mongo node-dev ./Example"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miserylee/koa-rbac-mongo.git"
+  },
+  "keywords": [
+    "koa",
+    "rbac",
+    "mongo"
+  ],
+  "author": "Misery Lee <miserylee@foxmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/miserylee/koa-rbac-mongo/issues"
+  },
+  "homepage": "https://github.com/miserylee/koa-rbac-mongo#readme",
+  "devDependencies": {
+    "co-body": "^4.2.0",
+    "koa": "^1.2.4",
+    "koa-compose": "^2.4.0",
+    "node-dev": "^3.1.3",
+    "supertest": "^2.0.0"
+  },
+  "dependencies": {
+    "koa-rbac": "^1.0.5",
+    "mongodb": "^2.2.10"
+  }
+}
