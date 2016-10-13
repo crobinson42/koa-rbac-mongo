@@ -65,6 +65,8 @@ A `rbacMongo` object will attach to koa context.
 * fetch {`GeneratorFunction(code)`} Fetch a role data by code from database.
 * create {`GeneratorFunction(role)`} Create a role and save it to mongodb.
 * update {`GeneratorFunction(role)`} Update a role.
+* grant {`GeneratorFunction(code, permissionCode)`} Grant the permission to the role.
+* revoke {`GeneratorFunction(code, permissionCode)`} Revoke the permission to the role.
 * list {`GeneratorFunction()`} List all roles data from database.
 * remove {`GeneratorFunction(code)`} Remove a role data by code.
 

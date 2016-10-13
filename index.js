@@ -20,6 +20,7 @@ module.exports = ({
 
   const Permission = function () {
     const c = db.collection(permissionCollection);
+    const rc = db.collection(roleCollection);
     const fetch = function * (code) {
       return yield c.findOne({ code });
     };
@@ -36,25 +37,27 @@ module.exports = ({
       });
       return yield c.findOne({ _id: result.insertedId });
     }.bind(this);
-    const update = function * ({ code, name, meta = {}, description }) {
-      const permission = yield fetch(code);
-      if (permission) {
+    const update = function * (permission = {}) {
+      if (!permission.code) this.throw(400, 'Permission should have a code');
+      const p = yield fetch(permission.code);
+      if (p) {
         isNew = true;
-        return yield c.updateOne({ code }, {
-          $set: {
-            name,
-            meta,
-            description
-          }
+        return yield c.updateOne({ code: permission.code }, {
+          $set: permission
         });
       } else {
-        return yield create({ code, name, meta, description });
+        return yield create(permission);
       }
-    };
+    }.bind(this);
     const list = function * (query) {
       return yield c.find(query).toArray();
     };
     const remove = function * (code) {
+      // Remove all roles's permission
+      const roles = yield rc.find().toArray();
+      yield rc.updateMany({ code: { $in: roles.map(role => role.code) } }, {
+        $pull: { permissions: code }
+      });
       isNew = true;
       yield c.removeOne({ code });
     };
@@ -93,21 +96,31 @@ module.exports = ({
       });
       return yield c.findOne({ _id: result.insertedId });
     }.bind(this);
-    const update = function * ({ code, name, meta, description, permissions = [] }) {
-      const role = yield fetch(code);
-      if (role) {
+    const update = function * (role = {}) {
+      if (!role.code) this.throw(400, 'Role should have a code');
+      const r = yield fetch(role.code);
+      if (r) {
+        for (let permissionCode of role.permissions || []) {
+          const permission = yield pc.findOne({ code: permissionCode });
+          if (!permission) this.throw(400, `Permission '${permissionCode}' is not exists, please add it first.`);
+        }
         isNew = true;
-        return yield c.updateOne({ code }, {
-          $set: {
-            name,
-            meta,
-            description,
-            permissions
-          }
+        return yield c.updateOne({ code: role.code }, {
+          $set: role
         });
       } else {
-        return yield create({ code, name, meta, description, permissions });
+        return yield create(role);
       }
+    }.bind(this);
+    const grant = function * (code, permissionCode) {
+      const permission = yield pc.findOne({ code: permissionCode });
+      if (!permission) this.throw(`Permission '${permissionCode}' is not exists, please add it first.`);
+      yield c.updateOne({ code }, { $push: { permissions: permissionCode } });
+      return yield fetch(code);
+    }.bind(this);
+    const revoke = function * (code, permissionCode) {
+      yield c.updateOne({ code }, { $pull: { permissions: permissionCode } });
+      return yield fetch(code);
     };
     const list = function * (query) {
       return yield c.find(query).toArray();
@@ -121,6 +134,8 @@ module.exports = ({
       create,
       update,
       fetch,
+      grant,
+      revoke,
       list,
       remove
     };
