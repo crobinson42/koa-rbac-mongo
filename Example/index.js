@@ -7,19 +7,19 @@ const rbac = rbacMongo.rbac;
 
 const ACCOUNTS = {
   'Amy': {
-    roles: ['U']
+    roles: ['user']
   },
   'Bob': {
-    roles: ['E']
+    roles: ['editor']
   },
   'Joker': {
-    roles: ['U', 'A']
+    roles: ['user', 'admin']
   },
   'Luna': {
-    roles: ['C', 'U']
+    roles: ['custom', 'user']
   },
   'Misery': {
-    roles: ['S']
+    roles: ['super']
   }
 };
 
@@ -71,7 +71,7 @@ app.use(mount('/testData', function * () {
 }));
 
 app.use(mount('/doc', compose([
-  rbac.allow('DR'),
+  rbac.allow('doc.read'),
   function * (next) {
     if (this.method === 'GET') {
       this.body = { doc: 'Hello world!' };
@@ -80,7 +80,7 @@ app.use(mount('/doc', compose([
 ])));
 
 app.use(mount('/doc', compose([
-  rbac.allow('DD'),
+  rbac.allow('doc.delete'),
   function * (next) {
     if (this.method === 'DELETE') {
       this.body = { messge: 'Remove doc success!' };
@@ -89,7 +89,7 @@ app.use(mount('/doc', compose([
 ])));
 
 app.use(mount('/roles', compose([
-  rbac.allow('FR'),
+  rbac.allow('role.fetch'),
   function * (next) {
     if (this.method === 'GET') {
       this.body = (yield this.rbacMongo.Role.list()).map(role => role.code);
@@ -98,7 +98,7 @@ app.use(mount('/roles', compose([
 ])));
 
 app.use(mount('/roles', compose([
-  rbac.allow('IR'),
+  rbac.allow('role.invoke'),
   function * (next) {
     if (this.method === 'POST') {
       const body = yield parse.json(this);
@@ -108,7 +108,7 @@ app.use(mount('/roles', compose([
 ])));
 
 app.use(mount('/roles', compose([
-  rbac.allow('RR'),
+  rbac.allow('role.revoke'),
   function * (next) {
     if (this.method === 'DELETE') {
       this.body = yield this.rbacMongo.Role.remove(this.query.code);
@@ -124,65 +124,65 @@ co(function * () {
   yield request.post('/testData').set('Content-Type', 'application/json').send(TestData);
 
   // Read doc
-  console.log('Read doc with role [U]');
+  console.log('Read doc with role [user]');
   var { body, status } = yield request.get('/doc?username=Amy');
   console.log(status, body);
   console.log('');
 
   // Delete doc.
-  console.log('Delete doc with role [U] is forbidden.\n');
+  console.log('Delete doc with role [user] is forbidden.\n');
   yield request.delete('/doc?usernmae=Amy').expect(403);
 
-  // Delete doc with role [E]
-  console.log('Delete doc with role [E]');
+  // Delete doc with role [editor]
+  console.log('Delete doc with role [editor]');
   var { body, status } = yield request.delete('/doc?username=Bob');
   console.log(status, body);
   console.log('');
 
-  // Fetch roles with role [A]
-  console.log('Fetch roles with role [A]');
+  // Fetch roles with role [admin]
+  console.log('Fetch roles with role [admin]');
   var { body, status } = yield request.get('/roles?username=Joker');
   console.log(status, body);
   console.log('');
 
-  // Invoke role with role [A]
-  console.log('Invoke role with role [A] is forbidden.\n');
+  // Invoke role with role [admin]
+  console.log('Invoke role with role [admin] is forbidden.\n');
   yield request.post('/roles?username=Joker').set('Content-Type', 'application/json').send({
-    code: 'C',
+    code: 'custom',
     name: 'Custom',
-    inherited: 'A'
+    inherited: 'admin'
   }).expect(403);
 
-  // Invoke role with role [S]
-  console.log('Invoke role with role [S]');
+  // Invoke role with role [super]
+  console.log('Invoke role with role [super]');
   var { status, body } = yield request.post('/roles?username=Misery').set('Content-Type', 'application/json').send({
-    code: 'C',
+    code: 'custom',
     name: 'Custom',
-    inherited: ['A']
+    permissions: ['role.fetch']
   });
   console.log(status, body);
   console.log('');
 
-  // Fetch roles with role [C];
-  console.log('Fetch roles with role [C]');
+  // Fetch roles with role [custom];
+  console.log('Fetch roles with role [custom]');
   var { body, status } = yield request.get('/roles?username=Luna');
   console.log(status, body);
   console.log('');
 
-  // Revoke role with role [S]
-  console.log('Revoke role with role [S]');
+  // Revoke role with role [super]
+  console.log('Revoke role with role [super]');
   var { status, body } = yield request.delete('/roles?username=Misery&code=C');
   console.log(status, body);
   console.log('');
 
-  // Fetch roles with role [S];
-  console.log('Fetch roles with role [C]');
+  // Fetch roles with role [super];
+  console.log('Fetch roles with role [super]');
   var { body, status } = yield request.get('/roles?username=Misery');
   console.log(status, body);
   console.log('');
 
   // Delete doc.
-  console.log('Delete doc with role [C] is forbidden.\n');
+  console.log('Delete doc with role [costom] is forbidden.\n');
   yield request.delete('/doc?usernmae=Luna').expect(403);
 
   // Clear test data

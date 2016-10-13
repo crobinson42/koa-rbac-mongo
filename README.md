@@ -54,18 +54,48 @@ The [koa-rbac](https://github.com/yanickrochon/koa-rbac) instance;
 A `rbacMongo` object will attach to koa context.
 #### ctx.rbacMongo.Permission {`Object`}
 * collection {[Collection](http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html)} The collection where tokens saved.
+* fetch {`GeneratorFunction(code)`} Fetch a permission data by code from database.
 * create {`GeneratorFunction(permission)`} Create a permission and save it to mongodb.
-* get {`GeneratorFunction(code)`} Get a permission data by code from database.
+* update {`GeneratorFunction(permission)`} Update a permission.
 * list {`GeneratorFunction()`} List all permissions data from database.
 * remove {`GeneratorFunction(code)`} Remove a permission data by code.
 
 #### ctx.rbacMongo.Role {`Object`}
 * collection {[Collection](http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html)} The collection where tokens saved.
+* fetch {`GeneratorFunction(code)`} Fetch a role data by code from database.
 * create {`GeneratorFunction(role)`} Create a role and save it to mongodb.
+* update {`GeneratorFunction(role)`} Update a role.
 * list {`GeneratorFunction()`} List all roles data from database.
 * remove {`GeneratorFunction(code)`} Remove a role data by code.
 
+The `permission` data is like:
+```javascript
+const permission = {
+  code: 'doc.read', // The unique code of the permission
+  name: 'Doc reading', // The friendly name for display on front-end.
+  description: 'Reading docs only.', // The optional description of the permission
+  meta: { // Some extra data for business use.
+    someKey: 'someValue'
+  }
+}
+```
+The `role` data is like;
+```javascript
+const role = {
+  code: 'editor', // The unique code of the permission,
+  name: 'The editor', // The friendly name for display on front-end.
+  description: 'The role can edit the docs', // The optional description of the role
+  meta: { // Some extra data for business use.
+    someKey: 'someValue'
+  },
+  permissions: ['doc.edit'] // Some extra permissions the role required
+}
+```
 Notice: Everytime permissions or roles changed, `rbacMongo` will regenerate the rules from all data.
+
+***Notice:*** I used inherited feature in the previous version `0.1.x`, but it's no use at all in my
+application development, so I removed it in `0.2.x`. It's an break change!!!
+
 
 ### Contributing
 - Fork this Repo first

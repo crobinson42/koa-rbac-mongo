@@ -1,52 +1,41 @@
 module.exports.permissions = [{
-  code: 'DA',
+  code: 'doc.add',
   name: 'Docs adding'
 }, {
-  code: 'DR',
+  code: 'doc.read',
   name: 'Docs reading'
 }, {
-  code: 'DE',
+  code: 'doc.edit',
   name: 'Docs editing'
 }, {
-  code: 'DD',
+  code: 'doc.delete',
   name: 'Docs deleting'
 }, {
-  code: 'DM',
-  name: 'Docs management',
-  description: 'Manage docs (CURD)',
-  includes: ['DA', 'DR', 'DE', 'DD']
-}, {
-  code: 'IR',
+  code: 'role.invoke',
   name: 'Invoke role'
 }, {
-  code: 'RR',
+  code: 'role.revoke',
   name: 'Revoke role'
 }, {
-  code: 'FR',
+  code: 'role.fetch',
   name: 'Fetch role'
-}, {
-  code: 'RM',
-  name: 'Role management',
-  includes: ['IR', 'RR', 'FR']
 }];
 
 module.exports.roles = [{
-  code: 'U',
+  code: 'user',
   name: 'User',
-  permissions: ['DA', 'DR']
+  permissions: ['doc.add', 'doc.read']
 }, {
-  code: 'E',
+  code: 'editor',
   name: 'Editor',
-  permissions: ['DM', 'DA']
+  permissions: ['doc.add', 'doc.read', 'doc.edit', 'doc.delete']
 }, {
-  code: 'A',
+  code: 'admin',
   name: 'Admin',
-  inherited: ['E'],
-  permissions: ['FR']
+  permissions: ['doc.add', 'doc.read', 'doc.edit', 'doc.delete', 'role.fetch']
 }, {
-  code: 'S',
+  code: 'super',
   name: 'Super manager',
   description: 'The highest role.',
-  inherited: ['A'],
-  permissions: ['RM']
+  permissions: ['doc.add', 'doc.read', 'doc.edit', 'doc.delete', 'role.fetch', 'role.invoke', 'role.revoke']
 }];

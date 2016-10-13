@@ -20,73 +20,109 @@ module.exports = ({
 
   const Permission = function () {
     const c = db.collection(permissionCollection);
+    const fetch = function * (code) {
+      return yield c.findOne({ code });
+    };
+    const create = function * ({ code, name, meta = {}, description }) {
+      if (!code || !name) this.throw(400, 'Permission should have code and name.');
+      const p = yield fetch(code);
+      if (p) this.throw(400, 'Permission code should be unique.');
+      isNew = true;
+      const result = yield c.insertOne({
+        code,
+        name,
+        meta,
+        description
+      });
+      return yield c.findOne({ _id: result.insertedId });
+    }.bind(this);
+    const update = function * ({ code, name, meta = {}, description }) {
+      const permission = yield fetch(code);
+      if (permission) {
+        isNew = true;
+        return yield c.updateOne({ code }, {
+          $set: {
+            name,
+            meta,
+            description
+          }
+        });
+      } else {
+        return yield create({ code, name, meta, description });
+      }
+    };
+    const list = function * (query) {
+      return yield c.find(query).toArray();
+    };
+    const remove = function * (code) {
+      isNew = true;
+      yield c.removeOne({ code });
+    };
     return {
       collection: c,
-      create: function * ({ code, name, description, includes = [] }) {
-        if (!code || !name) this.throw(400, 'Permission should have code and name.');
-        if (!Array.isArray(includes)) this.throw(400, 'Permission `includes` should be an array.');
-        const p = yield c.findOne({ code });
-        if (p) this.throw(400, 'Permission code should be unique.');
-        for (let childCode of includes) {
-          const child = yield c.findOne({ code: childCode });
-          if (!child) this.throw(400, `Child permission '${childCode}' is not exists, please add it first`);
-        }
-        isNew = true;
-        return yield c.insertOne({
-          code,
-          name,
-          description,
-          includes
-        });
-      }.bind(this),
-      get: function * (code) {
-        return yield c.findOne({ code });
-      },
-      list: function * () {
-        return yield c.find().toArray();
-      },
-      remove: function * (code) {
-        isNew = true;
-        yield c.removeOne({ code });
-      }
+      create,
+      fetch,
+      update,
+      list,
+      remove
     };
   };
 
   const Role = function () {
     const c = db.collection(roleCollection);
     const pc = db.collection(permissionCollection);
+    const fetch = function * (code) {
+      return yield c.findOne({ code });
+    };
+    const create = function * ({ code, name, meta, description, permissions = [] }) {
+      if (!code || !name) this.throw(400, 'Role should have code and name');
+      if (!Array.isArray(permissions)) this.throw(400, 'Permission `permissions` should be an array.');
+      const role = yield fetch(code);
+      if (role) this.throw(400, 'Role code should be unique.');
+      for (let permissionCode of permissions) {
+        const permission = yield pc.findOne({ code: permissionCode });
+        if (!permission) this.throw(400, `Permission '${permissionCode}' is not exists, please add it first.`);
+      }
+      isNew = true;
+      const result = yield c.insertOne({
+        code,
+        name,
+        meta,
+        description,
+        permissions
+      });
+      return yield c.findOne({ _id: result.insertedId });
+    }.bind(this);
+    const update = function * ({ code, name, meta, description, permissions = [] }) {
+      const role = yield fetch(code);
+      if (role) {
+        isNew = true;
+        return yield c.updateOne({ code }, {
+          $set: {
+            name,
+            meta,
+            description,
+            permissions
+          }
+        });
+      } else {
+        return yield create({ code, name, meta, description, permissions });
+      }
+    };
+    const list = function * (query) {
+      return yield c.find(query).toArray();
+    };
+    const remove = function * (code) {
+      isNew = true;
+      yield c.removeOne({ code });
+    };
     return {
       collection: c,
-      create: function * ({ code, name, description, inherited = [], permissions = [] }) {
-        if (!code || !name) this.throw(400, 'Role should have code and name');
-        if (!Array.isArray(inherited)) this.throw(400, 'Permission `inherited` should be an array.');
-        if (!Array.isArray(permissions)) this.throw(400, 'Permission `permissions` should be an array.');
-        const role = yield c.findOne({ code });
-        if (role) this.throw(400, 'Role code should be unique.');
-        for (let parentRole of inherited) {
-          const parent = yield c.findOne({ code: parentRole });
-          if (!parent) this.throw(400, `Parent role '${parentRole}' is not exists, please add it first.`);
-        }
-        for (let permissionCode of permissions) {
-          const permission = yield pc.findOne({ code: permissionCode });
-          if (!permission) this.throw(400, `Permission '${permissionCode}' is not exists, please add it first.`);
-        }
-        isNew = true;
-        return yield c.insertOne({
-          code,
-          name,
-          description,
-          inherited,
-          permissions
-        });
-      }.bind(this),
-      list: function * () {
-        return yield c.find().toArray();
-      },
-      remove: function * (code) {
-        isNew = true;
-        yield c.removeOne({ code });
-      }
+      create,
+      update,
+      fetch,
+      list,
+      remove
     };
   };
 
@@ -108,15 +144,9 @@ module.exports = ({
       const roles = yield this.rbacMongo.Role.list();
 
       for (let role of roles) {
-        const p = [];
-        for (let code of role.permissions) {
-          const permission = yield this.rbacMongo.Permission.get(code);
-          if (permission && permission.includes.length > 0) p.push(...permission.includes);
-          else p.push(code);
-        }
         rules[role.code] = {
           inherited: role.inherited,
-          permissions: p
+          permissions: role.permissions
         };
       }
 
