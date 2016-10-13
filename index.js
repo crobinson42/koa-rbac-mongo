@@ -1,8 +1,9 @@
 const rbac = require('koa-rbac');
 const mongodb = require('mongodb');
 const MongoClient = mongodb.MongoClient;
-const debug = require('debug')('koa-rbac-mongo');
+const log = require('debug')('koa-rbac-mongo');
 const Provider = require('./Provider');
+const co = require('co');
 
 module.exports = ({
   uri,
@@ -17,6 +18,7 @@ module.exports = ({
   let db;
   let isNew = true;
   let rules = {};
+  let usedPermissions = [];
 
   const Permission = function () {
     const c = db.collection(permissionCollection);
@@ -141,14 +143,27 @@ module.exports = ({
     };
   };
 
-  return function * (next) {
+  const connectDB = function * () {
+    // If db is connecting, wait for a moment. If it's still connecting, connect it again.
+    if (db === 'connecting') yield new Promise(resolve => setTimeout(resolve, 500));
+    if (db === 'connecting') db = null;
     if (!db) {
-      db = yield MongoClient.connect(uri, mongoOptions);
-      yield db.collection(permissionCollection).createIndex({ code: 1 }, { unique: 1 });
-      yield db.collection(roleCollection).createIndex({ code: 1 }, { unique: 1 });
+      db = 'connecting';
+      try {
+        db = yield MongoClient.connect(uri, mongoOptions);
+        yield db.collection(permissionCollection).createIndex({ code: 1 }, { unique: 1 });
+        yield db.collection(roleCollection).createIndex({ code: 1 }, { unique: 1 });
 
-      debug('DB connected!');
+        log('DB connected!');
+      } catch (err) {
+        log(`DB connected failed. Error: ${err.message}`);
+        db = null;
+      }
     }
+  };
+
+  const middleware = function * (next) {
+    yield connectDB();
 
     this.rbacMongo = {
       Permission: Permission.bind(this)(),
@@ -174,7 +189,47 @@ module.exports = ({
       }),
       identity
     }).bind(this)(next);
-  }
+  };
+
+  middleware.check = function (code, { name, meta, description }, handler) {
+
+    if (name && !usedPermissions.includes[code]) {
+      usedPermissions.push(code);
+      co(function * () {
+        yield connectDB();
+        const c = db.collection(permissionCollection);
+        const permission = yield c.findOne({ code });
+        if (permission) {
+          yield c.updateOne({ code }, {
+            $set: {
+              name,
+              description
+            }
+          });
+          log(`Update permission ${name}[${code}] success!`);
+        } else {
+          yield c.insertOne({
+            code,
+            name,
+            description,
+            meta
+          });
+          log(`Create permission ${name}[${code}] success!`);
+        }
+      }).catch(err => {
+        throw err;
+      });
+    }
+
+    return function * (next) {
+      if (handler) {
+        next = handler.bind(this)(next);
+      }
+      yield rbac.allow([code]).bind(this)(next);
+    }
+  };
+
+  return middleware;
 };
 
 module.exports.rbac = rbac;

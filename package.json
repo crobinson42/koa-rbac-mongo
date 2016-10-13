@@ -1,6 +1,6 @@
 {
   "name": "koa-rbac-mongo",
-  "version": "0.2.7",
+  "version": "0.2.10",
   "description": " Save the rbac rules to mongodb for dynamic rbac setup and check.",
   "main": "index.js",
   "scripts": {
@@ -29,6 +29,7 @@
     "supertest": "^2.0.0"
   },
   "dependencies": {
+    "co": "^4.6.0",
     "koa-rbac": "^1.0.5",
     "mongodb": "^2.2.10"
   }
