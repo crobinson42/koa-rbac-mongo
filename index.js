@@ -118,10 +118,12 @@ module.exports = ({
       const permission = yield pc.findOne({ code: permissionCode });
       if (!permission) this.throw(400, `Permission '${permissionCode}' is not exists, please add it first.`);
       yield c.updateOne({ code }, { $push: { permissions: permissionCode } });
+      isNew = true;
       return yield fetch(code);
     }.bind(this);
     const revoke = function * (code, permissionCode) {
       yield c.updateOne({ code }, { $pull: { permissions: permissionCode } });
+      isNew = true;
       return yield fetch(code);
     };
     const list = function * (query) {
