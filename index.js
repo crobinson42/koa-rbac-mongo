@@ -116,7 +116,7 @@ module.exports = ({
     }.bind(this);
     const grant = function * (code, permissionCode) {
       const permission = yield pc.findOne({ code: permissionCode });
-      if (!permission) this.throw(`Permission '${permissionCode}' is not exists, please add it first.`);
+      if (!permission) this.throw(400, `Permission '${permissionCode}' is not exists, please add it first.`);
       yield c.updateOne({ code }, { $push: { permissions: permissionCode } });
       return yield fetch(code);
     }.bind(this);
@@ -191,6 +191,8 @@ module.exports = ({
     }).bind(this)(next);
   };
 
+  middleware.usedPermissions = usedPermissions;
+
   middleware.check = function (code, { name, meta, description }, handler) {
 
     if (name && !usedPermissions.includes[code]) {
@@ -203,7 +205,8 @@ module.exports = ({
           yield c.updateOne({ code }, {
             $set: {
               name,
-              description
+              description,
+              meta
             }
           });
           log(`Update permission ${name}[${code}] success!`);

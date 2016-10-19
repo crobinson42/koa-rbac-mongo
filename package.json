@@ -1,6 +1,6 @@
 {
   "name": "koa-rbac-mongo",
-  "version": "0.2.10",
+  "version": "0.2.12",
   "description": " Save the rbac rules to mongodb for dynamic rbac setup and check.",
   "main": "index.js",
   "scripts": {
