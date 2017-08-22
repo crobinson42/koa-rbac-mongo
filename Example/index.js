@@ -4,6 +4,9 @@ const co = require('co');
 const parse = require('co-body');
 const compose = require('koa-compose');
 const rbac = rbacMongo.rbac;
+const mongodb = require('mongodb');
+const MongoClient = mongodb.MongoClient;
+const log = require('debug')('koa-rbac-mongo');
 
 const ACCOUNTS = {
   'Amy': {
@@ -23,103 +26,107 @@ const ACCOUNTS = {
   }
 };
 
-app.use(function * (next) {
-  this.state.user = ACCOUNTS[this.query.username || 'Amy'];
-  yield next;
-});
+co(function * () {
+  const db = yield MongoClient.connect('mongodb://localhost/rbac-mongo');
 
-app.use(rbacMongo({
-  uri: 'mongodb://localhost/rbac-mongo',
-  permissionCollection: 'permissions',
-  roleCollection: 'roles',
-  mongoOptions: {},
-  identity: function (ctx) {
-    if (!ctx.state || !ctx.state.user) ctx.throw(401);
-    return ctx.state.user;
-  }
-}));
+  log('DB connected!');
 
-app.on('error', console.error);
+  app.use(function * (next) {
+    this.state.user = ACCOUNTS[this.query.username || 'Amy'];
+    yield next;
+  });
 
-const mount = function (path, middleware) {
-  return function * (next) {
-    if (path === this.path) {
-      yield middleware.bind(this)(next);
-    } else {
-      yield next;
+  app.use(rbacMongo({
+    db,
+    permissionCollection: 'permissions',
+    roleCollection: 'roles',
+    mongoOptions: {},
+    identity: function (ctx) {
+      if (!ctx.state || !ctx.state.user) ctx.throw(401);
+      return ctx.state.user;
     }
-  }
-};
+  }));
 
-app.use(mount('/testData', function * () {
-  if (this.method === 'POST') {
-    const body = yield parse.json(this);
-    for (let permission of body.permissions) {
-      yield this.rbacMongo.Permission.create(permission);
+  app.on('error', console.error);
+
+  const mount = function (path, middleware) {
+    return function * (next) {
+      if (path === this.path) {
+        yield middleware.bind(this)(next);
+      } else {
+        yield next;
+      }
     }
-    console.log('Import permissions success.');
-    for (let role of body.roles) {
-      yield this.rbacMongo.Role.create(role);
-    }
-    console.log('Import roles success.');
-  } else if (this.method === 'DELETE') {
-    yield this.rbacMongo.Permission.collection.removeMany();
-    console.log('Remove permissions success.');
-    yield this.rbacMongo.Role.collection.removeMany();
-    console.log('Remove roles success.');
-  }
-}));
+  };
 
-app.use(mount('/doc', compose([
-  rbac.allow('doc.read'),
-  function * (next) {
-    if (this.method === 'GET') {
-      this.body = { doc: 'Hello world!' };
-    } else yield next;
-  }
-])));
-
-app.use(mount('/doc', compose([
-  rbac.allow('doc.delete'),
-  function * (next) {
-    if (this.method === 'DELETE') {
-      this.body = { messge: 'Remove doc success!' };
-    } else yield next;
-  }
-])));
-
-app.use(mount('/roles', compose([
-  rbac.allow('role.fetch'),
-  function * (next) {
-    if (this.method === 'GET') {
-      this.body = (yield this.rbacMongo.Role.list()).map(role => role.code);
-    } else yield next;
-  }
-])));
-
-app.use(mount('/roles', compose([
-  rbac.allow('role.invoke'),
-  function * (next) {
+  app.use(mount('/testData', function * () {
     if (this.method === 'POST') {
       const body = yield parse.json(this);
-      this.body = yield this.rbacMongo.Role.create(body);
-    } else yield next;
-  }
-])));
+      for (let permission of body.permissions) {
+        yield this.rbacMongo.Permission.create(permission);
+      }
+      console.log('Import permissions success.');
+      for (let role of body.roles) {
+        yield this.rbacMongo.Role.create(role);
+      }
+      console.log('Import roles success.');
+    } else if (this.method === 'DELETE') {
+      yield this.rbacMongo.Permission.collection.removeMany();
+      console.log('Remove permissions success.');
+      yield this.rbacMongo.Role.collection.removeMany();
+      console.log('Remove roles success.');
+    }
+  }));
 
-app.use(mount('/roles', compose([
-  rbac.allow('role.revoke'),
-  function * (next) {
-    if (this.method === 'DELETE') {
-      this.body = yield this.rbacMongo.Role.remove(this.query.code);
-    } else yield next;
-  }
-])));
+  app.use(mount('/doc', compose([
+    rbac.allow('doc.read'),
+    function * (next) {
+      if (this.method === 'GET') {
+        this.body = { doc: 'Hello world!' };
+      } else yield next;
+    }
+  ])));
 
-const request = require('supertest').agent(app.listen());
-const TestData = require('./TestData');
+  app.use(mount('/doc', compose([
+    rbac.allow('doc.delete'),
+    function * (next) {
+      if (this.method === 'DELETE') {
+        this.body = { messge: 'Remove doc success!' };
+      } else yield next;
+    }
+  ])));
 
-co(function * () {
+  app.use(mount('/roles', compose([
+    rbac.allow('role.fetch'),
+    function * (next) {
+      if (this.method === 'GET') {
+        this.body = (yield this.rbacMongo.Role.list()).map(role => role.code);
+      } else yield next;
+    }
+  ])));
+
+  app.use(mount('/roles', compose([
+    rbac.allow('role.invoke'),
+    function * (next) {
+      if (this.method === 'POST') {
+        const body = yield parse.json(this);
+        this.body = yield this.rbacMongo.Role.create(body);
+      } else yield next;
+    }
+  ])));
+
+  app.use(mount('/roles', compose([
+    rbac.allow('role.revoke'),
+    function * (next) {
+      if (this.method === 'DELETE') {
+        this.body = yield this.rbacMongo.Role.remove(this.query.code);
+      } else yield next;
+    }
+  ])));
+
+  const request = require('supertest').agent(app.listen());
+  const TestData = require('./TestData');
+
   // Init test data
   yield request.post('/testData').set('Content-Type', 'application/json').send(TestData);
 
@@ -187,4 +194,6 @@ co(function * () {
 
   // Clear test data
   yield request.delete('/testData');
+
 }).catch(console.error);
+
