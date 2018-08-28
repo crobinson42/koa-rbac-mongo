@@ -1,4 +1,5 @@
 ## koa-rbac-mongo ![NPM version](https://img.shields.io/npm/v/koa-rbac-mongo.svg?style=flat)
+<a href="https://communityinviter.com/apps/koa-js/koajs" rel="KoaJs Slack Community">![KoaJs Slack](https://img.shields.io/badge/Koa.Js-Slack%20Channel-Slack.svg?longCache=true&style=for-the-badge)</a>
 
  Save the rbac rules to mongodb for dynamic rbac setup and check.
 
